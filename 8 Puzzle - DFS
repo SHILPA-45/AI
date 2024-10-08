@@ -1,0 +1,137 @@
+import numpy as np
+
+
+class Node:
+    def __init__(self, state, parent, action):
+        self.state = state
+        self.parent = parent
+        self.action = action
+
+
+class StackFrontier:
+    def __init__(self):
+        self.frontier = []
+
+    def add(self, node):
+        self.frontier.append(node)
+
+    def contains_state(self, state):
+        return any((node.state[0] == state[0]).all() for node in self.frontier)
+
+    def empty(self):
+        return len(self.frontier) == 0
+
+    def remove(self):
+        if self.empty():
+            raise Exception("Empty Frontier")
+        else:
+            node = self.frontier[-1]  # Remove from the end (LIFO)
+            self.frontier = self.frontier[:-1]
+            return node
+
+
+class Puzzle:
+    def __init__(self, start, startIndex, goal, goalIndex):
+        self.start = [start, startIndex]
+        self.goal = [goal, goalIndex]
+        self.solution = None
+
+    def neighbors(self, state):
+        mat, (row, col) = state
+        results = []
+
+        if row > 0:  # Move up
+            mat1 = np.copy(mat)
+            mat1[row][col] = mat1[row - 1][col]
+            mat1[row - 1][col] = 0
+            results.append(('up', [mat1, (row - 1, col)]))
+        if col > 0:  # Move left
+            mat1 = np.copy(mat)
+            mat1[row][col] = mat1[row][col - 1]
+            mat1[row][col - 1] = 0
+            results.append(('left', [mat1, (row, col - 1)]))
+        if row < 2:  # Move down
+            mat1 = np.copy(mat)
+            mat1[row][col] = mat1[row + 1][col]
+            mat1[row + 1][col] = 0
+            results.append(('down', [mat1, (row + 1, col)]))
+        if col < 2:  # Move right
+            mat1 = np.copy(mat)
+            mat1[row][col] = mat1[row][col + 1]
+            mat1[row][col + 1] = 0
+            results.append(('right', [mat1, (row, col + 1)]))
+
+        return results
+
+    def print_solution(self):
+        if self.solution is not None:
+            print("Start State:\n", self.start[0], "\n")
+            print("Goal State:\n", self.goal[0], "\n")
+            print("\nStates Explored: ", self.num_explored, "\n")
+            for idx, state in enumerate(self.explored):
+                print(f"{idx + 1}. \n{state[0]}\n")
+            print("Solution Steps:")
+            for action, cell in zip(self.solution[0], self.solution[1]):
+                print(f"Move {action}:\n{cell[0]}\n")
+            print("Goal Reached!!")
+        else:
+            print("No solution found.")
+
+    def does_not_contain_state(self, state):
+        for st in self.explored:
+            if (st[0] == state[0]).all():
+                return False
+        return True
+
+    def solve(self):
+        self.num_explored = 0
+        self.explored = []  # Initialize explored states
+
+        start = Node(state=self.start, parent=None, action=None)
+        frontier = StackFrontier()  # Use StackFrontier for DFS
+        frontier.add(start)
+
+        while True:
+            if frontier.empty():
+                raise Exception("No solution")
+
+            node = frontier.remove()
+            self.num_explored += 1
+            self.explored.append(node.state)  # Add current state to explored
+
+            if (node.state[0] == self.goal[0]).all():
+                actions = []
+                cells = []
+                while node.parent is not None:
+                    actions.append(node.action)
+                    cells.append(node.state)
+                    node = node.parent
+                actions.reverse()
+                cells.reverse()
+                self.solution = (actions, cells)
+                return
+
+            for action, state in self.neighbors(node.state):
+                if not frontier.contains_state(state) and self.does_not_contain_state(state):
+                    child = Node(state=state, parent=node, action=action)
+                    frontier.add(child)
+
+
+def input_puzzle():
+    print("Enter the initial state (3x3 matrix, use spaces to separate numbers):")
+    start = np.array([list(map(int, input().split())) for _ in range(3)])
+
+    print("Enter the goal state (3x3 matrix, use spaces to separate numbers):")
+    goal = np.array([list(map(int, input().split())) for _ in range(3)])
+
+    startIndex = tuple(map(int, np.argwhere(start == 0)[0]))  # Find position of 0 in start
+    goalIndex = tuple(map(int, np.argwhere(goal == 0)[0]))  # Find position of 0 in goal
+
+    return start, startIndex, goal, goalIndex
+
+
+if __name__ == "__main__":
+    start, startIndex, goal, goalIndex = input_puzzle()
+    p = Puzzle(start, startIndex, goal, goalIndex)
+    p.solve()
+    p.print_solution()
