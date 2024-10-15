@@ -1,0 +1,95 @@
+import heapq
+
+class PuzzleState:
+    def __init__(self, state, empty_tile_pos, g, h, path, level):
+        self.state = state
+        self.empty_tile_pos = empty_tile_pos  # (row, col)
+        self.g = g  # Cost from start to current state
+        self.h = h  # Heuristic cost to goal
+        self.f = g + h  # Total cost
+        self.path = path  # Path taken to reach this state
+        self.level = level  # Depth level in the state space
+
+    def __lt__(self, other):
+        return self.f < other.f  # Priority queue comparison based on f value
+
+def astar_manhattan_distance(start_state, goal_state):
+    directions = {
+        (-1, 0): 'Up',
+        (1, 0): 'Down',
+        (0, -1): 'Left',
+        (0, 1): 'Right'
+    }
+
+    def calculate_heuristic(state):
+        h = 0
+        for i in range(3):
+            for j in range(3):
+                value = state[i][j]
+                if value != 0:
+                    goal_row = (value - 1) // 3
+                    goal_col = (value - 1) % 3
+                    h += abs(goal_row - i) + abs(goal_col - j)
+        return h
+
+    def generate_moves(state, empty_tile_pos):
+        moves = []
+        row, col = empty_tile_pos
+        for (dr, dc), direction in directions.items():
+            new_row, new_col = row + dr, col + dc
+            if 0 <= new_row < 3 and 0 <= new_col < 3:
+                new_state = [list(r) for r in state]  # Deep copy
+                # Swap the empty tile with the adjacent tile
+                new_state[row][col], new_state[new_row][new_col] = new_state[new_row][new_col], new_state[row][col]
+                moves.append((new_state, (new_row, new_col), direction))
+        return moves
+
+    visited = set()
+    start_empty_pos = next((i, j) for i in range(3) for j in range(3) if start_state[i][j] == 0)
+    start_h = calculate_heuristic(start_state)
+    start_node = PuzzleState(start_state, start_empty_pos, 0, start_h, [start_state], 0)
+
+    priority_queue = []
+    heapq.heappush(priority_queue, start_node)
+
+    while priority_queue:
+        current_node = heapq.heappop(priority_queue)
+
+        # Check if we reached the goal
+        if current_node.state == goal_state:
+            print("Goal state reached!")
+            for step in current_node.path:
+                for row in step:
+                    print(row)
+                print()
+            return
+        
+        visited.add(tuple(map(tuple, current_node.state)))  # Add current state to visited
+
+        # Generate possible moves
+        for new_state, new_empty_pos, direction in generate_moves(current_node.state, current_node.empty_tile_pos):
+            if tuple(map(tuple, new_state)) not in visited:
+                g = current_node.g + 1  # Cost from start
+                h = calculate_heuristic(new_state)  # Heuristic
+                new_path = current_node.path + [new_state]
+                new_node = PuzzleState(new_state, new_empty_pos, g, h, new_path, current_node.level + 1)
+                
+                # Print state information
+                print(f"Level: {new_node.level}, Direction: {direction}, Heuristic: {new_node.h}")
+                for row in new_node.state:
+                    print(row)
+                print()
+
+                heapq.heappush(priority_queue, new_node)
+
+def main():
+    print("Enter initial state (3x3 grid, use 0 for empty tile):")
+    start_state = [list(map(int, input().split())) for _ in range(3)]
+    
+    print("Enter goal state (3x3 grid, use 0 for empty tile):")
+    goal_state = [list(map(int, input().split())) for _ in range(3)]
+
+    astar_manhattan_distance(start_state, goal_state)
+
+if __name__ == "__main__":
+    main(
